@@ -11,9 +11,9 @@ https://docs.google.com/document/d/1VbBnYDUzCAE1dYghOoocsyDnpy6SssiqK4eywoyShSg
 - `/diff` previous edition
 - `/diff/[n]` nth edition
 - `/diff/-[n]` nth previous edition
-- `/diff/:hash` specific edition
+- `/diff/:hash` or `/diff/edition_id` specific edition
 - `/diff/yyyy-mm-ddThh:mm:ss` edition current at that time
-- `/diff/:hash/:hash` between two particular editions (infer which is newer)
+- `/diff/:hash/:hash` or `/diff/:edition_id/:edition_id` between two particular editions (infer which is newer)
 - `/diff/:hash/yyyy-mm-dd` etc.
 - `/diffs` list editions, datetime, severity and diff
 - `/diffs?neighbours=true` include editions, datetime, severity and diff of links from/to the `page,` to visualise as a timeline
