@@ -1,4 +1,7 @@
-CREATE OR REPLACE TABLE micropigs AS
+-- Extract content history of a particular page, for demo
+
+DROP TABLE IF EXISTS micropigs;
+CREATE TABLE micropigs AS
 SELECT
   editions.id,
   editions.updated_at,
@@ -28,6 +31,6 @@ WHERE
     'working_group'
   )
   AND base_path = '/guidance/keeping-a-pet-pig-or-micropig'
+  ORDER BY updated_at
 ;
-
-\copy micropigs to './micropigs.csv';
+\copy micropigs TO 'micropigs.csv' DELIMITER '|';
