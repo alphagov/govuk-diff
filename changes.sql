@@ -15,11 +15,12 @@
 -- earliest, making a git commit of each one.
 
 CREATE INDEX IF NOT EXISTS index_editions_on_schema_name ON editions (schema_name);
+CREATE INDEX details_gin ON editions USING GIN (details);
 
-DROP TABLE IF EXISTS commits;
-CREATE TABLE commits AS
+DROP TABLE IF EXISTS commits2;
+CREATE TABLE commits2 AS
 WITH
-changes AS (
+subset AS (
   SELECT
     editions.id AS edition_id,
     documents.content_id,
@@ -31,6 +32,7 @@ changes AS (
   WHERE TRUE
     AND editions.state <> 'draft'
     AND documents.locale = 'en'
+--    AND documents.content_id = 'b088fea6-8b85-4986-bdc9-f4f9293108bf'
 --    AND editions.base_path IN (
 --      '/guidance/keeping-a-pet-pig-or-micropig',
 --      '/government/people/rishi-sunak',
@@ -38,24 +40,35 @@ changes AS (
 --      '/find-driving-test-centre',
 --      '/apply-renew-passport'
 --    )
-  ORDER BY updated_at DESC
+  ORDER BY editions.updated_at DESC
   LIMIT 1000000
 ),
-latest_change_note AS (
-  SELECT DISTINCT ON (change_notes.edition_id)
-    change_notes.edition_id,
-    change_notes.note
-  FROM change_notes
-  INNER JOIN changes USING (edition_id)
-  ORDER BY
-    change_notes.edition_id,
-    change_notes.updated_at
+-- Discard editions where the details JSON didn't change
+subset_changes AS (
+  SELECT
+    subset.edition_id,
+    subset.content_id,
+    subset.updated_at,
+    subset.schema_name,
+    subset.details
+  FROM subset
+  INNER JOIN (
+    SELECT
+      edition_id,
+      LAG(details, 1, '{}'::jsonb) OVER (
+        PARTITION BY content_id
+        ORDER BY updated_at
+      ) AS details
+    FROM subset
+  ) AS lag_details USING (edition_id)
+  WHERE TRUE
+    AND NOT subset.details = lag_details.details
 ),
 content AS (
   SELECT
     edition_id,
     details ->> 'body' AS content
-  FROM changes
+  FROM subset_changes
   WHERE
     schema_name IN (
       'calendar',
@@ -83,7 +96,7 @@ content AS (
   SELECT
     edition_id,
     (jsonb_path_query(details, '$.body[0] ? (exists (@ ? (@.content_type == "text/govspeak")))') ->> 'content') AS content
-  FROM changes
+  FROM subset_changes
   WHERE TRUE
     AND schema_name IN (
       'answer',
@@ -103,7 +116,7 @@ content AS (
       chr(13) || chr(10)    -- CRLF
       || chr(13) || chr(10) -- CRLF
     ) AS content
-  FROM changes
+  FROM subset_changes
     LEFT JOIN LATERAL (
       SELECT
         '##Summary'
@@ -137,7 +150,7 @@ content AS (
       chr(13) || chr(10)      -- CRLF
         || chr(13) || chr(10) -- CRLF
     ) AS content
-  FROM changes
+  FROM subset_changes
   LEFT JOIN LATERAL (
     SELECT
       '#Introduction'
@@ -176,7 +189,7 @@ content AS (
       chr(13) || chr(10)      -- CRLF
         || chr(13) || chr(10) -- CRLF
     ) AS content
-  FROM changes
+  FROM subset_changes
   LEFT JOIN LATERAL (
     SELECT
       '#Introductory paragraph'
@@ -221,17 +234,57 @@ content AS (
     ) AS other_ways_to_apply ON TRUE
   WHERE TRUE
     AND schema_name = 'transaction'
+),
+latest_change_note AS (
+  SELECT DISTINCT ON (change_notes.edition_id)
+    change_notes.edition_id,
+    change_notes.note
+  FROM change_notes
+  INNER JOIN subset_changes USING (edition_id)
+  ORDER BY
+    change_notes.edition_id,
+    change_notes.updated_at
+),
+altogether AS (
+  SELECT
+    subset_changes.edition_id,
+    subset_changes.content_id,
+    subset_changes.updated_at,
+    subset_changes.schema_name,
+    latest_change_note.note,
+    content.content
+    FROM subset_changes
+    INNER JOIN content USING (edition_id) -- inner join omits rows whose schema we don't support
+    LEFT JOIN latest_change_note USING (edition_id)
+),
+-- Discard editions where the content didn't change
+changes AS (
+  SELECT
+    altogether.edition_id,
+    altogether.content_id,
+    altogether.updated_at,
+    altogether.schema_name,
+    altogether.note,
+    altogether.content
+  FROM altogether
+  INNER JOIN (
+    SELECT
+      edition_id,
+      LAG(content, 1, '') OVER (
+        PARTITION BY content_id
+        ORDER BY updated_at
+      ) AS content
+    FROM altogether
+  ) AS lag_content USING (edition_id)
+  WHERE TRUE
+    AND altogether.content <> lag_content.content
 )
 SELECT
-  changes.edition_id,
-  changes.content_id,
-  changes.updated_at,
-  latest_change_note.note,
-  content.content
-  FROM changes
-  INNER JOIN content USING (edition_id) -- inner join omits rows whose schema we don't support
-  LEFT JOIN latest_change_note USING (edition_id)
-  ORDER BY
-    changes.updated_at,
-    changes.edition_id
+  edition_id,
+  content_id,
+  updated_at,
+  note,
+  content
+FROM changes
+ORDER BY updated_at
 ;
