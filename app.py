@@ -1,6 +1,7 @@
 from flask import Flask, render_template
 import difflib
 from lib.edition_with_changenote import EditionWithChangeNote
+from lib.load_editions_with_changenotes import load_from_hardcoded_data
 from lib.blame import change_note_for
 
 app = Flask(__name__)
@@ -11,8 +12,9 @@ def hello_world():
 
 @app.route("/micropigs/blame")
 def micropigs_blame():
-    latest_edition = EditionWithChangeNote(micropigs1.splitlines(), "Change note 1")
-    other_editions = [EditionWithChangeNote(micropigs2.splitlines(), "Change note 2")]
+    all_editions = load_from_hardcoded_data()
+    latest_edition = all_editions[0]
+    other_editions = all_editions[1:]
     change_notes = [change_note_for(line, [latest_edition] + other_editions) for line in latest_edition.lines]
     lines_to_change_notes = dict([(edition_line, change_note) for (edition_line, change_note) in zip(latest_edition.lines, change_notes)])
     return render_template('blame.html', edition_lines=latest_edition.lines, lines_to_change_notes=lines_to_change_notes)
