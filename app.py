@@ -1,31 +1,78 @@
-from flask import Flask
-import difflib
+import pathlib
+import pygit2
+import io
+import subprocess
+import urllib.request
+import json
+from flask import Flask, render_template, request
 
 app = Flask(__name__)
 
-@app.route("/")
-def hello_world():
-    return "<p>Hello, World!</p>"
+repo_path = pathlib.Path("../gitgovuk") # The repo needs an initial commit before this script can commit
+repo = pygit2.Repository(repo_path)
 
-@app.route("/micropigs")
-def micropigs1():
-    return f"""
-<div>
-<div style=\"float: left; width: 50%\">{micropigs1}</div>
-<div style=\"float: right; width: 50%\">{micropigs2}</div>
-</div>
-"""
-
-@app.route("/diff")
-def diff():
-    return difflib.HtmlDiff().make_file(micropigs1.splitlines(),
-                                        micropigs2.splitlines())
+def chunks(log, lines=3):
+    buf = io.StringIO(log)
+    while chunk := buf.readline():
+        for _ in range(lines - 1):
+            chunk += buf.readline()
+        yield chunk
 
 
-micropigs1 = """
-<div class="govspeak"><p>You’re considered to be a pig keeper if you keep a pig or ‘micropig’ as a pet. You have to follow the same regulations as pig farmers.</p>\n\n<p>‘Micropigs’ are pigs bred to be small so they can be more easily kept as pets.</p>\n\n<h2 id="register-as-pig-keeper">Register as pig keeper</h2>\n\n<p>You can’t keep a pet pig at your home until you <a href="https://www.gov.uk/guidance/register-land-you-use-to-keep-livestock#get-a-permanent-cph-number" class="govuk-link">get a county parish holding (<abbr title="County/Parish/Holding number">CPH</abbr>) number</a> from the Rural Payments Agency (<abbr title="Rural Payments Agency">RPA</abbr>).</p>\n\n<p>You must also tell the <a href="https://www.gov.uk/government/organisations/animal-and-plant-health-agency/about/access-and-opening" class="govuk-link">Animal and Plant Health Agency (<abbr title="Animal and Plant Health Agency">APHA</abbr>)</a> that you’re keeping pigs, within 30 days of your first pet pig arriving on your land.</p>\n\n<p><abbr title="Animal and Plant Health Agency">APHA</abbr> will give you a herd mark. Herd marks are 1 or 2 letters followed by 4 digits, such as A1234 or XY9876.</p>\n\n<p>You’ll need this to identify your pig or micropig if you move it from your holding.</p>\n\n<h2 id="get-a-licence-to-walk-a-pet-pig">Get a licence to walk a pet pig</h2>\n\n<p>You need to get a licence from your <a href="https://www.gov.uk/government/organisations/animal-and-plant-health-agency/about/access-and-opening" class="govuk-link"><abbr title="Animal and Plant Health Agency">APHA</abbr></a> to walk your pig outside your home or premises.</p>\n\n<p><abbr title="Animal and Plant Health Agency">APHA</abbr> may not approve your walking route if it poses a health risk, for example if it passes close to a:</p>\n\n<ul>\n  <li>livestock market</li>\n  <li>pig farm</li>\n  <li>fast food restaurant</li>\n</ul>\n\n<p>You must have your licence with you whenever you’re walking your pig, and you’ll need to renew it every year.</p>\n\n<h2 id="moving-pigs-away-from-your-home-or-premises">Moving pigs away from your home or premises</h2>\n\n<p>You must <a href="https://www.gov.uk/guidance/pig-keepers-identify-animals-before-moving-them" class="govuk-link">tag, tattoo or mark your pig with identification details</a> if you plan to move it away from your home or premises (for example, for a walk under licence or to a market, pig farm or abattoir).</p>\n\n<p>You must also <a href="https://www.gov.uk/guidance/pig-keepers-report-and-record-movements-to-or-from-your-holding" class="govuk-link">report and record any movement of your pig</a>.</p>\n\n<p>You don’t have to report and record the movement if you’re only taking it for a walk under the terms of your licence.</p>\n\n<h2 id="what-you-can-feed-pigs">What you can feed pigs</h2>\n\n<p>You can’t feed pigs catering waste from any domestic or commercial kitchen, including kitchens that only cater for vegetarians. Catering waste includes used cooking oil.</p>\n\n<p>You generally can’t feed pigs material of animal origin or products containing material of animal origin. However, you can feed pigs:</p>\n\n<ul>\n  <li>liquid milk or colostrum produced on the same holding the pigs are kept on</li>\n  <li>former foodstuffs that contain rennet, melted fat, milk or eggs, as long as these materials aren’t the main ingredient</li>\n  <li>milk, milk products and white water (water used to clean dairy equipment) in some cases (find out <a href="https://www.gov.uk/feeding-milk-and-milk-products-to-farm-animals-on-your-farm" class="govuk-link">when you can feed milk and milk products to farmed animals</a>)</li>\n  <li>fishmeal, di-or tri-calcium phosphate, or blood products in some cases (find out these have to be <a href="https://www.gov.uk/supplying-and-using-animal-by-products-as-farm-animal-feed" class="govuk-link">processed before they can be fed to farmed animals</a>)</li>\n</ul>\n\n<p>You can get pig food from a premises that handles material that can’t be fed to pigs, but only if both of the following apply:</p>\n\n<ul>\n  <li>the premises has a procedure to keep material that can be fed to pigs separate from material that can’t be fed to pigs</li>\n  <li>the procedure has been agreed with a local authority</li>\n</ul>\n\n<p>Contact the <a href="https://www.gov.uk/government/organisations/animal-and-plant-health-agency/about/access-and-opening" class="govuk-link">Animal and Plant Health Agency</a> if you’re still unsure whether you can feed something to your pig,</p>\n\n</div>
-"""
+def parse_log(log):
+    entries = chunks(log)
+    list_of_log_lines = [entry.splitlines() for entry in entries]
+    transpose = list(map(list, zip(*list_of_log_lines))) # transpose list
+    return transpose
 
-micropigs2 = """
-<div class="govspeak"><p>If you keep a pig or ‘micropig’ as a pet, you’re considered a pig keeper. You must follow the same welfare and traceability regulations as pig farmers.</p>\n\n<p>‘Micropigs’ are pigs bred to be small so they can be kept more easily as pets.</p>\n\n<p>You are legally responsible for the welfare of your pig. You must look after it by:</p>\n\n<ul>\n  <li>providing it with a suitable place to live</li>\n  <li>giving it a suitable diet</li>\n  <li>making sure it can behave naturally and normally</li>\n  <li>protecting it from pain, suffering, injury and disease</li>\n</ul>\n\n<p>You must follow <a href="https://www.gov.uk/guidance/disease-prevention-for-livestock-farmers" class="govuk-link">good hygiene and biosecurity standards</a> to help prevent the introduction and spread of disease.</p>\n\n<h2 id="before-you-get-a-pig">Before you get a pig</h2>\n\n<p>You must <a href="https://www.gov.uk/government/publications/apply-for-a-county-parish-holding-cph-number" class="govuk-link">apply for a county parish holding (<abbr title="County/Parish/Holding number">CPH</abbr>) number</a> from the Rural Payments Agency (<abbr title="Rural Payments Agency">RPA</abbr>)</p>\n\n<p>You must also <a href="https://www.gov.uk/guidance/register-land-you-use-to-keep-livestock#update-your-cph-details" class="govuk-link">let <abbr title="Rural Payments Agency">RPA</abbr> know if there are any changes to your <abbr title="County/Parish/Holding number">CPH</abbr> details</a>, within 30 days of the change.</p>\n\n<h2 id="register-as-pig-keeper">Register as pig keeper</h2>\n\n<p>By law you must <a href="https://www.gov.uk/guidance/pig-keepers-register-your-holding-and-animals" class="govuk-link">register your pet pig with the Animal and Plant Health Agency (<abbr title="Animal and Plant Health Agency">APHA</abbr>)</a> within 30 days of your first pet pig arriving on your land or at your home.</p>\n\n<div class="contact">\n<p>Animal and Plant Health Agency<br>\nTelephone (Defra rural services helpline): 03000 200 301<br>\nMonday to Friday, 8:30am to 5pm<br>\n<a href="https://www.gov.uk/call-charges" class="govuk-link">Find out about call charges</a>   <br>\nEmail: <a href="mailto:customer.registration@apha.gov.uk" class="govuk-link">customer.registration@apha.gov.uk</a></p>\n</div>\n\n<h3 id="tell-apha-if-your-circumstances-change">Tell <abbr title="Animal and Plant Health Agency">APHA</abbr> if your circumstances change</h3>\n\n<p>You must tell <abbr title="Animal and Plant Health Agency">APHA</abbr> if you:</p>\n\n<ul>\n  <li>move house</li>\n  <li>get more pigs or a new species of pig</li>\n  <li>stop keeping pigs</li>\n</ul>\n\n<p>This is so <abbr title="Animal and Plant Health Agency">APHA</abbr> can track the location and movement of animals to prevent and control disease.</p>\n\n<p><a href="https://www.gov.uk/guidance/pig-keepers-register-your-holding-and-animals#report-any-change-in-circumstances" class="govuk-link">Report any change in circumstances to <abbr title="Animal and Plant Health Agency">APHA</abbr>.</a></p>\n\n<h2 id="get-a-licence-to-walk-a-pet-pig">Get a licence to walk a pet pig</h2>\n\n<p>You need to apply for a licence from <abbr title="Animal and Plant Health Agency">APHA</abbr> to walk your pig outside your home or premises. You can get an application form from <abbr title="Animal and Plant Health Agency">APHA</abbr>.</p>\n\n<div class="contact">\n<p>Animal and Plant Health Agency<br>\nTelephone (Defra rural services helpline): 03000 200 301<br>\nMonday to Friday, 8:30am to 5pm<br>\n<a href="https://www.gov.uk/call-charges" class="govuk-link">Find out about call charges</a> <br>\nEmail: <a href="mailto:CSCOneHealthAGO@apha.gov.uk" class="govuk-link">CSCOneHealthAGO@apha.gov.uk</a></p>\n</div>\n\n<p>You’ll need to provide a map of your proposed route as part of your application. <abbr title="Animal and Plant Health Agency">APHA</abbr> may not approve your walking route if it poses a health risk, for example if it passes close to a:</p>\n\n<ul>\n  <li>livestock market</li>\n  <li>pig farm</li>\n  <li>fast food restaurant</li>\n</ul>\n\n<p>You must have your licence with you whenever you’re walking your pig, and you’ll need to renew it every year.</p>\n\n<h2 id="when-to-record-movements">When to record movements</h2>\n\n<p>You must <a href="https://www.gov.uk/guidance/pig-keepers-report-and-record-movements-to-or-from-your-holding" class="govuk-link">report and record any movement of your pig</a>.</p>\n\n<p>You do not need to report and record the movement if you’re only taking it for a walk under the terms of your licence.</p>\n\n<h2 id="add-identification-details-to-your-pig">Add identification details to your pig</h2>\n\n<p>You must <a href="https://www.gov.uk/guidance/pig-keepers-identify-animals-before-moving-them" class="govuk-link">tag, tattoo or mark your pig with identification details</a> if you plan to move it away from your home or premises. This includes:</p>\n\n<ul>\n  <li>taking it for a walk (under licence)</li>\n  <li>taking it to a market, pig farm or abbatoir</li>\n</ul>\n\n<h2 id="feeding-your-pigs">Feeding your pigs</h2>\n\n<p>You cannot feed pigs catering waste from any domestic or commercial kitchen including kitchens that only cater for vegetarians. Catering waste includes used cooking oil.</p>\n\n<p>You generally cannot feed pigs material of animal origin or products containing material of animal origin.</p>\n\n<p>You can feed pigs:</p>\n\n<ul>\n  <li>liquid milk or colostrum produced on the same holding the pigs are kept on</li>\n  <li>former foodstuffs that contain rennet, melted fat, milk or eggs, as long as these materials are not the main ingredient</li>\n  <li>milk, milk products and white water (water used to clean dairy equipment) in some cases – find out <a href="https://www.gov.uk/feeding-milk-and-milk-products-to-farm-animals-on-your-farm" class="govuk-link">when you can feed milk and milk products to farmed animals</a>\n</li>\n  <li>fishmeal, di-or tri-calcium phosphate, or blood products in some cases - find out when these must be <a href="https://www.gov.uk/supplying-and-using-animal-by-products-as-farm-animal-feed" class="govuk-link">processed before they can be fed to farmed animals</a>\n</li>\n</ul>\n\n<p>You can get pig food from a premises that handles material that cannot be fed to pigs, but only if both of the following apply:</p>\n\n<ul>\n  <li>the premises has a procedure to keep material that can be fed to pigs separate from material that cannot be fed to pigs</li>\n  <li>the procedure has been agreed with a local authority</li>\n</ul>\n\n<p>Contact <abbr title="Animal and Plant Health Agency">APHA</abbr> if you’re still unsure whether you can feed something to your pig.</p>\n\n</div>
-"""
+
+def git_log_of_file(file_path):
+    ret = subprocess.run([
+        "git log --pretty=tformat:\"%h%n%ci%n%s\" --date=iso",
+        file_path
+    ], cwd=repo_path, capture_output=True, shell=True)
+    return parse_log(ret.stdout.decode())
+
+
+def file_path_from_content_id(content_id):
+    file_name = content_id
+    # Create a directory hierarchy using the first few characters of the
+    # content_id, so that not every file is in the same folder, which
+    # would make it very hard to browse.
+    dir = pathlib.Path(*list(file_name[:4]))
+    repo_dir = pathlib.Path(repo_path, dir)
+    dir_file = pathlib.Path(dir, file_name)
+    repo_dir_file = pathlib.Path(repo_dir, file_name)
+    return dir_file
+
+
+def content_api_from_url(url):
+    return url.replace("https://www.gov.uk/", "https://www.gov.uk/api/content/")
+
+
+def content_id_of_url(url):
+    with urllib.request.urlopen(content_api_from_url(url)) as req:
+        content_json = json.load(req)
+        return content_json['content_id']
+
+
+def file_path_from_url(url):
+    return file_path_from_content_id(content_id_of_url(url))
+
+
+@app.route('/')
+def my_form(methods=['GET']):
+    return render_template('diff2htmlui.html', url='Paste GOV.UK URL here', diff='', diffs=[])
+
+@app.route('/', methods=['POST'])
+def my_form_post():
+    url = request.form['url']
+    file_path = file_path_from_url(url)
+    git_log = git_log_of_file(file_path)
+    # diff = repo.diff('HEAD~1', 'HEAD')
+    return render_template(
+        'diff2htmlui.html',
+        # diff=diff.patch,
+        url=url,
+        diffs=git_log[0]
+    )
