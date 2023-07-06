@@ -1,0 +1,13 @@
+.hover-element {
+    display: none;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    background-color: lightblue;
+    padding: 10px;
+}
+
+.box-with-hover:hover + div {
+    display: block;
+}
+

@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/blame.css') }}">
+</head>
+{% for line in edition_lines: %}
+    <div>
+        <div class="box-with-hover">
+            {{ line | safe }}
+        </div>
+        <div class="hover-element">{{ lines_to_change_notes[line] }}</div>
+    </div>
+{% endfor %}
+</html>
