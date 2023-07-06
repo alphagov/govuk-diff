@@ -5,9 +5,32 @@
     width: 100%;
     background-color: lightblue;
     padding: 10px;
+    z-index: 100;
 }
 
 .box-with-hover:hover + div {
     display: block;
 }
 
+* {
+    font-family: "GDS Transport",arial,sans-serif;
+}
+
+.header {
+    background-color: black;
+}
+
+.crown {
+    color: white;
+}
+
+.govuk-header__logotype-text {
+    color: white;
+    font-weight: 650;
+    font-size: 30px;
+}
+
+.call-to-action {
+    padding: 10px;
+    background-color: #f3f2f1
+}

@@ -17,7 +17,12 @@ def micropigs_blame():
     other_editions = all_editions[1:]
     change_notes = [change_note_for(line, [latest_edition] + other_editions) for line in latest_edition.lines]
     lines_to_change_notes = dict([(edition_line, change_note) for (edition_line, change_note) in zip(latest_edition.lines, change_notes)])
-    return render_template('blame.html', edition_lines=latest_edition.lines, lines_to_change_notes=lines_to_change_notes)
+    return render_template('blame.html',
+                           edition_lines=latest_edition.lines,
+                           lines_to_change_notes=lines_to_change_notes,
+                           live_url="https://www.gov.uk/guidance/keeping-a-pet-pig-or-micropig",
+                           title="Keeping a pet pig or 'micropig'"
+                           )
 
 @app.route("/micropigs")
 def micropigs1():
