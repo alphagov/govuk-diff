@@ -99,7 +99,8 @@ highlighting.
 
 ## Potential implementation
 
-- Git, but it might not scale well, so https://git-scm.com/docs/scalar
+- Git, but it might not scale well, so https://git-scm.com/docs/scalar `scalar
+  register`
 - Each file named by its content ID
 - Files organised into a hierarchy by each of the first six (or however many) characters of the content ID
 - Flask?
@@ -251,3 +252,35 @@ https://github.com/alphagov/publisher/blob/main/app/views/editions/diff.html.erb
 
 The diff is of the markdown
 https://github.com/alphagov/publisher/blob/2490b437ea4c92653d7d7e9a0ad1b84c0fba869f/app/models/parted.rb#L31-L33
+
+## Learnings
+
+- GCP Cloud SQL (Postgres) took 16 hours to restore the 30G publishing database
+  from backup.  Most of that was the largest table: `editions`.  It turns out
+  that heavily optimising the same task in the
+  https://github.com/alphagov/govuk-knowledge-graph-gcp was well worth it -- it
+  takes only about an hour there, because the compute instance has a direct
+  connection to an SSD disk (instead of a network connection), and postgres is
+  configured not to take any preventative measures against data corruption (no
+  write-ahead log, etc.).
+- Flask is very fiddly if you want form elements to stay in sync.  Streamlit is
+  much easier, and you don't even have to write an HTML template.
+- The Publishing API database has lots of duplicate editions, where absolutely
+  nothing changed.  These are probably created when a rendering app is updated,
+  and all the documents of a certain type are republished in order to cause the
+  rendering app to re-render them.
+- Git scales pretty well, but not that well.  Above 80k commits, it could only
+  make 10-15 commits per second.  `git log <filename>` is also pretty slow.  We
+  could do better by parsing `git log` into a database, which could be indexed
+  by filename.
+- It was worthwhile to use the first four characters of a `content_id` as
+  a directory hierarchy, so that the repo can be browsed, rather than have
+  hundreds of thousands of files in a single directory.
+- Editions of mainstream pages don't have change notes.
+- Data protection would take some care -- the third-most changed page (among
+  `guide`, `detailed_guide` and `travel_advice` is a [list of upcoming
+  disciplinary hearings of
+  schoolteachers](https://www.gov.uk/guidance/teacher-misconduct-attend-a-professional-conduct-panel-hearing-or-meeting),
+  naming the people involved.
+- Legislation.gov.uk makes it possible to explore 1000 years of the history of
+  law.

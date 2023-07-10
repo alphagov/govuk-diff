@@ -30,11 +30,12 @@ WHERE
     'topical_event_about_page',
     'working_group'
   )
+  LIMIT 1
 ;
 
 SELECT
   editions.id,
-  jsonb_path_query(details, '$.body[0].content') AS content
+  (jsonb_path_query(details, '$.body[0] ? (exists (@ ? (@.content_type == "text/govspeak")))') ->> 'content') AS content
 FROM editions
 WHERE TRUE
   AND schema_name IN (
@@ -47,7 +48,7 @@ WHERE TRUE
     'simple_smart_answer',
     'specialist_document'
   )
- AND jsonb_path_query(details, '$.parts[0].body.content_type') = 'text/govspeak'
+  -- AND base_path = '/government/people/rishi-sunak'
 ;
 
 SELECT
