@@ -24,6 +24,8 @@ This would facilitate tasks such as:
   that month, but is now out of date, and doesn't do historic document types.
 - No API endpoints
 - A streamlit app that runs on a laptop, and is hardcoded to certain file paths.
+- An interface for a bespoke kind of `git blame`, displaying the change note
+  upon mouseover of the line of content that was changed.
 
 ## What we didn't manage to do
 
@@ -72,6 +74,10 @@ Run the streamlit app.
 ```sh
 streamlit run diffgovuk.py
 ```
+
+## Gif of git repo search
+
+![Animated gif of using the streamlit app](./streamlit.gif)
 
 ## Potential API endpoints
 
