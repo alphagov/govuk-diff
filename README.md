@@ -1,10 +1,79 @@
 # GOV.UK content as a git repository
 
-https://docs.google.com/document/d/1VbBnYDUzCAE1dYghOoocsyDnpy6SssiqK4eywoyShSg
+An experiment to make every version of every page on GOV.UK into a git commit.
+This would facilitate tasks such as:
 
-[Trello](https://trello.com/c/kqgNh9Rn/20-open-version-history-of-govuk)
+- See what changed since a given time (`git diff`)
+- When, why and how was a certain line of content last edited (`git blame`).
+- Find all edits that involved a certain string (`git log -G"His Majesty|Her Majesty" --patch`).
+- Browse the site at a certain version (`git checkout`)
 
-## Possible endpoints
+- [Trello](https://trello.com/c/kqgNh9Rn/20-open-version-history-of-govuk)
+- [Google doc](https://docs.google.com/document/d/1VbBnYDUzCAE1dYghOoocsyDnpy6SssiqK4eywoyShSg)
+
+## What we managed to do in the end
+
+- This repo, and a repo https://github.com/alphagov/gitgovuk to contain the
+  content commits.
+- About 80k commits of content of document types `guide`, `detailed_guide`, and
+  `travel_advice`, beginning with the present day and working back in time.
+  That was over a year of changes.
+- All document types except `step_by_step` that existed in November 2022,
+  because we based our queries on
+  https://github.com/alphagov/govuk-knowledge-graph-gcp, which was complete in
+  that month, but is now out of date, and doesn't do historic document types.
+- No API endpoints
+- A streamlit app that runs on a laptop, and is hardcoded to certain file paths.
+
+## What we didn't manage to do
+
+- Complete history (from the Publishing API database, so only back to 2017)
+- API
+- Incremental updates from the nightly GOV.UK Publishing API database backup
+  file
+- Historic document schemas, and versions of them
+- Document `title` and `description` elements, and some other fields that could
+  be considered to be content, such as `start_button_text`.
+- Links.  We had hoped to include the structure of GOV.UK.
+- Deletions of whole content items.
+
+## Running the things
+
+Restore a nightly backup of the GOV.UK Publishing API database, and run the
+query in ./changes.sql to create a table called `commits`.
+
+Create a directory alongside this repo, called `gitgovuk`, open a terminal
+inside it, and run:
+
+```sh
+git init
+scalar register
+```
+
+Install some python packages.
+
+```sh
+pip install "psycopg[binary]"
+pip install pygit2
+```
+
+Run the python script `commit.py`.
+
+```sh
+python commit.py
+```
+
+It will begin making commits to the git repository in the `gitgovuk` directory,
+and tell you how many commits have been made so far.  When you have lost
+patience, stop the script.
+
+Run the streamlit app.
+
+```sh
+streamlit run diffgovuk.py
+```
+
+## Potential API endpoints
 
 `https://diff.gov.uk/<endpoint>`
 
@@ -23,12 +92,12 @@ https://docs.google.com/document/d/1VbBnYDUzCAE1dYghOoocsyDnpy6SssiqK4eywoyShSg
 - `/diffs/search?keywords=foo+bar` filter url/diffs for diffs that affect all the given keywords
 - `/diffs/search?keywords=foo+bar&keywords=baz` diffs that affect all of at least one set of keywords
 
-## Interface
+## Potential interface
 
 Browse to an endpoint to see the unrendered govspeak or HTML, with diff
 highlighting.
 
-## Implementation
+## Potential implementation
 
 - Git, but it might not scale well, so https://git-scm.com/docs/scalar
 - Each file named by its content ID
@@ -110,16 +179,25 @@ JSON, includes multiple redirections per document.
 
 ## Tasks
 
-- [ ] Tasks
-- [ ] How many characters of the content ID are nearly unique?
-- [ ] How long does `git checkout <commit>` take?
-- [ ] How long does `git blame` take?
-- [ ] Find the thing for browsing Git repos
-- [ ] `git commit` with a specific timestamp
-- [ ] Understand CRUD of documents via editions
-- [ ] Understand which of GONE and other similar statuses should be implemented by deleting the file
+- [x] How many characters of the content ID are nearly unique? _Four_.
+- [x] How long does `git checkout <commit>` take? _Less than a second, with 80k
+  commits_.
+- [x] How long does `git blame` take? _Several seconds, with 80k commits_.
+- [] Find the thing for browsing Git repos. _Couldn't find it_.
+- [x] `git commit` with a specific timestamp.
+- [ ] Understand CRUD of documents via editions.
+- [ ] Understand which of GONE and other similar statuses should be implemented by deleting the file.
+- [ ] Find out how the right to be forgotten is managed on GOV.UK and with the
+  National Archives.
 
 ## Cloud SQL Postgres
+
+This took 16 hours to restore the 30GB Publishing API database backup file, so
+we abandoned it.  The [GOV.UK Knowledge
+Graph](https://github.com/alphagov/govuk-knowledge-graph-gcp) can restore it in
+about an hour, by disabling some protections against data corruption, such as
+write-ahead-logging, and using an SSD drive directly connected to the instance
+(instead of over the network).
 
 - https://console.cloud.google.com/sql/instances/publishing/overview?project=generic-project-with-billing
 - https://cloud.google.com/sql/docs/postgres/connect-auth-proxy#unix-sockets

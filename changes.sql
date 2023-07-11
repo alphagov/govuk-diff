@@ -32,7 +32,7 @@ subset AS (
   WHERE TRUE
     AND editions.state <> 'draft'
     AND documents.locale = 'en'
---    AND documents.content_id = 'b088fea6-8b85-4986-bdc9-f4f9293108bf'
+--    Example documents of each schema that we support
 --    AND editions.base_path IN (
 --      '/guidance/keeping-a-pet-pig-or-micropig',
 --      '/government/people/rishi-sunak',
@@ -41,7 +41,8 @@ subset AS (
 --      '/apply-renew-passport'
 --    )
   ORDER BY editions.updated_at DESC
-  LIMIT 1000000
+--  A million rows takes several minutes to return
+--  LIMIT 1000000
 ),
 -- Discard editions where the details JSON didn't change
 subset_changes AS (

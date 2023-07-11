@@ -46,7 +46,7 @@ with psycopg.connect(db_conn_string) as conn:
             index.add(dir_file)
             index.write()
 
-            message = f"Change note: {note}" 
+            message = f"Change note: {note}"
 
             author = pygit2.Signature(
                 email=author_email,
@@ -64,4 +64,3 @@ with psycopg.connect(db_conn_string) as conn:
 
 stdout.write("\n")
 stdout.flush();
-
