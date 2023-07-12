@@ -75,6 +75,10 @@ Run the streamlit app.
 streamlit run diffgovuk.py
 ```
 
+## Gif of "blame" mouseover
+
+![Animated gif of using the "blame" mouseover](./blame.gif)
+
 ## Gif of git repo search
 
 ![Animated gif of using the streamlit app](./streamlit.gif)
